@@ -456,23 +456,10 @@ void Adafruit_ST7735::pushColor(uint16_t color) {
 
 void Adafruit_ST7735::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
-  if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
-
-  setAddrWindow(x,y,x+1,y+1);
-
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)     SPI.beginTransaction(mySPISettings);
-#endif
-
-  DC_HIGH();
-  CS_LOW();
-  spiwrite(color >> 8);
-  spiwrite(color);
-  CS_HIGH();
-
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)     SPI.endTransaction();
-#endif
+  uint8_t hi = color >> 8, lo = color;
+  startDraw(x,y,x+1,y+1);
+  drawFastPixel(x,y,hi,lo);
+  endDraw();
 }
 //REPLACE THESE WITH writePixel/startWrite/endWrite, once all other functions are modified to take start/endwrite into account.
 void Adafruit_ST7735::drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)
@@ -533,39 +520,65 @@ void Adafruit_ST7735::drawFastBitmap(int16_t x, int16_t y,
     endDraw();
 }
 //Draw fast bitmap, non-transparent
-void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y,
-  const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg) {
+void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[],bool flipH, bool flipV) {
+	drawCBMPsection(x,y,w,h,colorIndex,pal,w,h,0,flipH,flipV);
+}
+//FLIP image vertically, can just draw last line first, then go up
+//RGB 4-4-4 mode, 1byte, 1 pixel. 3AH = 03h
+//16 bit write mode?	
+//set inverted mode instead of rotate
+//Draw image section, like a tilemap
+void Adafruit_ST7735::drawCBMPsection(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], int16_t imageW, int16_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
-    int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
-    uint8_t byte = 0;
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
-	if((x + w - 1) >= _width)  w = _width  - x;
-	if((y + h - 1) >= _height) h = _height - y;
-	
-	
-	uint8_t hi_bg = bg >> 8, lo_bg = bg;
-	uint16_t iterator = 0;
 
+	//get correct address position of the tile we want
+	uint8_t line = ((sectionID * w) / imageW);
+	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
+	
+	int Xadder = 1;
+	int Yadder = 1;
+	
+	if (flipV)
+	{
+		//Xadder = -1;
+		
+		//iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
+		//iterator += (imageW -w)*30;
+		iterator = w*h;//this  will only work for non tiles - imageW same as w.
+	}
+	if(flipH)
+	{
+		iterator = w;
+	}
+	if(flipH&flipV)
+	{
+		iterator -= h;
+	}
+	
+	
     startDraw(x,y,x+w-1,y+h-1);
-    for(int16_t j=0; j<h; j++, y++) {
+    for(int16_t j=0; j<h; j+=Yadder, y++) {
         for(int16_t i=0; i<w; i++) {
-            if(i & 7) byte <<= 1;
-            else      byte   = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
 			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
-			iterator++;
-            if(byte & 0x80)
-			{
-				
-				uint16_t finalColor = pgm_read_word(&pal[color]);//convert 8 to 16 iterator
-				drawFastPixel(x+i, y, finalColor >> 8, finalColor);
-				//drawPixel(x+i,y,finalColor);
-			}
-			else //Looks like we need to write a background color for FastBG, because we have a screen area that gets written to sequentially, not sure how to skip yet.
-			{
-				drawFastPixel(x+i, y, hi_bg,lo_bg);
-			}
+			if(flipH || flipV)
+				iterator-= 1;
+			else
+				iterator +=1;
+			//move to a var- should also do bit shifting on load.
+			uint16_t finalColor = pgm_read_word(&pal[color]);
+			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
         }
+		if(flipH){
+			iterator+= w*2;//flipH draws the sprite the opp. way, so we have to go back 2xW to get to the next line.
+			}
+		if(flipV){
+			iterator-= imageW - w;
+			//iterator-= 32;
+			}
+		else{
+		iterator+= imageW - w;}
     }
     endDraw();
 }
@@ -631,38 +644,6 @@ void Adafruit_ST7735::drawSurface(int16_t x, int16_t y,
         }
     }
 }
-
-
-/*override void Adafruit_ST7735::writePixel(int16_t x, int16_t y, uint16_t color)
-{
-	spiwrite(color >> 8);
-	spiwrite(color);
-}
-
-override void Adafruit_ST7735::startWrite(int16_t x, int16_t y, int16_t w, int16_t h)
-{
-// rudimentary clipping (drawChar w/big text requires this)
-  if((x >= _width) || (y >= _height)) return;
-  if((x + w - 1) >= _width)  w = _width  - x;
-  if((y + h - 1) >= _height) h = _height - y;
-
-  setAddrWindow(x, y, x+w-1, y+h-1);
-  
-  #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)     SPI.beginTransaction(mySPISettings);
-  #endif
-  DC_HIGH();
-  CS_LOW();
-}
-
-override void Adafruit_ST7735::endWrite()
-{
-	CS_HIGH();
-
-	#if defined (SPI_HAS_TRANSACTION)
-	  if (hwSPI)     SPI.endTransaction();
-	#endif
-}*/
 
 void Adafruit_ST7735::drawFastVLine(int16_t x, int16_t y, int16_t h,
  uint16_t color) {
