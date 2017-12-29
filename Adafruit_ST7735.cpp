@@ -528,7 +528,14 @@ void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16
 //16 bit write mode?	
 //set inverted mode instead of rotate
 //Draw image section, like a tilemap
-void Adafruit_ST7735::drawCBMPsection(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], int16_t imageW, int16_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+//tileDraw - 55ms. 
+//improved to 47ms.
+//tileDraw while skipping blanks - 25-26ms - removing bitshifting only removed 1-2ms.
+//improved to 22-23ms.
+//generate rects for redraw tilemap?
+//w/ inefficient ifs -> 2-3,sometimes 4. w/o 1-2, sometimes 3.
+//getting rid of bitshifting helps.
+void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
@@ -537,19 +544,64 @@ void Adafruit_ST7735::drawCBMPsection(int16_t x, int16_t y, int16_t w, int16_t h
 	uint8_t line = ((sectionID * w) / imageW);
 	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
 	
-	int Xadder = 1;
-	int Yadder = 1;
+	int itXAdder = 1;
+	int itYAdder = imageW - w;
 	
 	if (flipV)
 	{
-		//Xadder = -1;
-		
+		itXAdder = -1;
+		itYAdder = -(imageW - w);
+
+		iterator = w*h;//this  will only work for non tiles - imageW same as w.
+		//iterator -= h;
+	}
+	if(flipH)
+	{
+		itXAdder = -1;
+		itYAdder = w*2;
+		iterator = w;
+		iterator -= h;
+	}
+	
+    startDraw(x,y,x+w-1,y+h-1);
+    for(uint8_t j=0; j<h; j+=1, y++) {
+        for(uint8_t i=0; i<w; i++) {
+			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
+			
+			iterator +=itXAdder;
+			//move to a var- should also do bit shifting on load.
+			uint16_t finalColor = pgm_read_word(&pal[color]);
+			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
+        }
+		iterator += itYAdder;
+		//iterator+= imageW - w;//}
+    }
+    endDraw();
+}
+/*void Adafruit_ST7735::drawCBMPsection1(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], uint8_t pal_hi[], uint8_t pal_lo[], int16_t imageW, int16_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+
+	// rudimentary clipping (drawChar w/big text requires this)
+	if((x >= _width) || (y >= _height)) return;
+
+	//get correct address position of the tile we want
+	uint8_t line = ((sectionID * w) / imageW);
+	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
+	
+	int itXAdder = 1;
+	int itYAdder = imageW - w;
+	
+	if (flipV)
+	{
+		itXAdder = -1;
+		itYAdder = -(imageW - w);
 		//iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
 		//iterator += (imageW -w)*30;
 		iterator = w*h;//this  will only work for non tiles - imageW same as w.
 	}
 	if(flipH)
 	{
+		itXAdder = -1;
+		itYAdder = w*2;
 		iterator = w;
 	}
 	if(flipH&flipV)
@@ -559,29 +611,19 @@ void Adafruit_ST7735::drawCBMPsection(int16_t x, int16_t y, int16_t w, int16_t h
 	
 	
     startDraw(x,y,x+w-1,y+h-1);
-    for(int16_t j=0; j<h; j+=Yadder, y++) {
+    for(int16_t j=0; j<h; j+=1, y++) {
         for(int16_t i=0; i<w; i++) {
 			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
-			if(flipH || flipV)
-				iterator-= 1;
-			else
-				iterator +=1;
-			//move to a var- should also do bit shifting on load.
-			uint16_t finalColor = pgm_read_word(&pal[color]);
-			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
+			
+			iterator +=itXAdder;
+
+			drawFastPixel(x+i, y, pal_hi[color], pal_lo[color]);
         }
-		if(flipH){
-			iterator+= w*2;//flipH draws the sprite the opp. way, so we have to go back 2xW to get to the next line.
-			}
-		if(flipV){
-			iterator-= imageW - w;
-			//iterator-= 32;
-			}
-		else{
-		iterator+= imageW - w;}
+		iterator += itYAdder;
+		//iterator+= imageW - w;//}
     }
     endDraw();
-}
+}*/
 //Draw Slow Color BMPs, with transparency.
 void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
   const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg) {
@@ -615,33 +657,29 @@ void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
     }
 }
 
-void Adafruit_ST7735::drawSurface(int16_t x, int16_t y,
-  const uint8_t bitmap[], int16_t w, int16_t h, uint16_t color,uint16_t bg) {
+void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID) {
 
-    int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
-    uint8_t byte = 0;
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
-	if((x + w - 1) >= _width)  w = _width  - x;
-	if((y + h - 1) >= _height) h = _height - y;
+
+	//get correct address position of the tile we want
+	uint8_t line = ((sectionID * w) / imageW);
+	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
 	
-	uint8_t hi = color >> 8, lo = color;
-	uint8_t hi_bg = bg >> 8, lo_bg = bg;
+	int itXAdder = 1;
+	int itYAdder = imageW - w;
 	
-    for(int16_t j=0; j<h; j++, y++) {
-        for(int16_t i=0; i<w; i++) {
-            if(i & 7) byte <<= 1;
-            else      byte   = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
-            if(byte & 0x80)
-			{
-				//if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
-				drawFastPixel(x+i, y, hi,lo);
-			}
-			else //Looks like we need to write a background color for FastBG, because we have a screen area that gets written to sequentially, not sure how to skip yet.
-			{
-				drawFastPixel(x+i, y, hi_bg,lo_bg);
-			}
+    for(uint8_t j=0; j<h; j+=1, y++) {
+        for(uint8_t i=0; i<w; i++) {
+			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
+			
+			iterator +=itXAdder;
+			//move to a var- should also do bit shifting on load.
+			uint16_t finalColor = pgm_read_word(&pal[color]);
+			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
         }
+		iterator += itYAdder;
+		//iterator+= imageW - w;//}
     }
 }
 
