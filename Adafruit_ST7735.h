@@ -138,6 +138,12 @@ as well as Adafruit raw 1.8" TFT display
  #define pgm_read_dword(addr) (*(const unsigned long *)(addr))
 #endif
 
+struct RLE_data
+{
+  unsigned char colorIdx;
+  uint8_t rLength;
+};
+
 class Adafruit_ST7735 : public Adafruit_GFX {
 
  public:
@@ -156,14 +162,14 @@ class Adafruit_ST7735 : public Adafruit_GFX {
            pushColor(uint16_t color),
            fillScreen(uint16_t color),
            drawPixel(int16_t x, int16_t y, uint16_t color),
-		   drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)/*NEED TO USE startDraw/endDraw before & after draw*/,
+		   drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)/*NEED TO USE startDraw/endDraw before & after this function*/,
 		   startDraw(int16_t x, int16_t y, int16_t w, int16_t h),
 		   drawFastBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, uint16_t color,uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[],bool flipH,bool FlipV)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   drawColorBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID)/*MUST USE START/END DRAW WITH THIS*/,
 		   drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID,bool flipH,bool FlipV),
-		   /*drawCBMPsection1(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], uint8_t pal_hi[], uint8_t pal_lo[], int16_t imageW, int16_t imageH, uint8_t sectionID, bool flipH, bool flipV),*/
+		   drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RLE_data graphic[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV),
 		   endDraw(),
            drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color),
            drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),
@@ -172,6 +178,8 @@ class Adafruit_ST7735 : public Adafruit_GFX {
            setRotation(uint8_t r),
            invertDisplay(boolean i);
   uint16_t Color565(uint8_t r, uint8_t g, uint8_t b);
+  
+  int RLE_Uncompress( unsigned char *in, RLE_data *out, unsigned int insize ); //uncompress encoded bitmap/tilemap
 
   /* These are not for current use, 8-bit protocol only!
   uint8_t  readdata(void),
@@ -213,6 +221,8 @@ class Adafruit_ST7735 : public Adafruit_GFX {
 #endif
 
 };
+
+
 
 
 #endif

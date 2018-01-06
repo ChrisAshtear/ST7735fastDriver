@@ -535,6 +535,10 @@ void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16
 //generate rects for redraw tilemap?
 //w/ inefficient ifs -> 2-3,sometimes 4. w/o 1-2, sometimes 3.
 //getting rid of bitshifting helps.
+
+//DRAW 1-bit bmp section, for use with fonts. ADAfruits GFX font routine is HUGE.
+
+//need to compact CIDX to 4bit
 void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
@@ -578,7 +582,8 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
     }
     endDraw();
 }
-/*void Adafruit_ST7735::drawCBMPsection1(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], uint8_t pal_hi[], uint8_t pal_lo[], int16_t imageW, int16_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+
+void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RLE_data graphic[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
@@ -587,44 +592,53 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
 	uint8_t line = ((sectionID * w) / imageW);
 	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
 	
-	int itXAdder = 1;
+	/*int itXAdder = 1;
 	int itYAdder = imageW - w;
 	
 	if (flipV)
 	{
 		itXAdder = -1;
 		itYAdder = -(imageW - w);
-		//iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
-		//iterator += (imageW -w)*30;
+
 		iterator = w*h;//this  will only work for non tiles - imageW same as w.
+		//iterator -= h;
 	}
 	if(flipH)
 	{
 		itXAdder = -1;
 		itYAdder = w*2;
 		iterator = w;
-	}
-	if(flipH&flipV)
-	{
 		iterator -= h;
-	}
-	
+	}*/
 	
     startDraw(x,y,x+w-1,y+h-1);
-    for(int16_t j=0; j<h; j+=1, y++) {
-        for(int16_t i=0; i<w; i++) {
-			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
-			
-			iterator +=itXAdder;
+	uint8_t pixelsDrawn = 0;
+	for(uint8_t j=0; j<RLEsize;j++)
+	{
+		uint8_t color = graphic[j].colorIdx;
+		uint16_t finalColor = pgm_read_word(&pal[color]);
+		uint8_t hi = finalColor >> 8, lo = finalColor;
+		
+		for(uint8_t i = 0; i<graphic[j].rLength;i++,pixelsDrawn++)
+		{
+			drawFastPixel(x+i, y, hi, lo);
+			if(pixelsDrawn >= w)
+			{
+				pixelsDrawn = 0;
+				y++;
+			}
+		}
+		//will probably need checks to see if rectFill exceeds graphic width
+		//pixels drawn var
+		
+	}
 
-			drawFastPixel(x+i, y, pal_hi[color], pal_lo[color]);
-        }
-		iterator += itYAdder;
-		//iterator+= imageW - w;//}
-    }
     endDraw();
-}*/
+}
+
 //Draw Slow Color BMPs, with transparency.
+//At present im not sure its possible to draw transparent BMPs with setAddrWindow set to the size of the graphic.
+//setAddrWindow needs to be provided with data to fill the entire space, it doesnt have a 'skip pixel' byte im aware of.
 void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
   const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg) {
 
@@ -922,115 +936,67 @@ inline void Adafruit_ST7735::DC_LOW(void) {
 #endif
 }
 
+//this is just a base - we dont need to save this to a buffer, we need to render it every frame.
+//assuming performance isnt badly affected.
+//a new draw routine needs to be created for tiles/bmps - being able to draw sections is going to require decoding part of the file.
+/*************************************************************************
+* RLE_Uncompress() - Uncompress a block of data using an RLE decoder.
+*  in      - Input (compressed) buffer.
+*  out     - Output RLEdata array. this is used by a draw routine.
+*  insize  - Number of input bytes.
+*  return  - size of array
+*************************************************************************/
+//need way to get length of array, before or after creation
+int RLE_Uncompress( unsigned char *in, RLE_data *out,
+    unsigned int insize )
+{
+    unsigned char marker, symbol;
+    unsigned int  i, inpos, outpos, count;
 
+    /* Do we have anything to uncompress? */
+    if( insize < 1 )
+    {
+        return 0;
+    }
 
-////////// stuff not actively being used, but kept for posterity
-/*
-
- uint8_t Adafruit_ST7735::spiread(void) {
- uint8_t r = 0;
- if (_sid > 0) {
- r = shiftIn(_sid, _sclk, MSBFIRST);
- } else {
- //SID_DDR &= ~_BV(SID);
- //int8_t i;
- //for (i=7; i>=0; i--) {
- //  SCLK_PORT &= ~_BV(SCLK);
- //  r <<= 1;
- //  r |= (SID_PIN >> SID) & 0x1;
- //  SCLK_PORT |= _BV(SCLK);
- //}
- //SID_DDR |= _BV(SID);
- 
- }
- return r;
- }
- 
- 
- void Adafruit_ST7735::dummyclock(void) {
- 
- if (_sid > 0) {
- digitalWrite(_sclk, LOW);
- digitalWrite(_sclk, HIGH);
- } else {
- // SCLK_PORT &= ~_BV(SCLK);
- //SCLK_PORT |= _BV(SCLK);
- }
- }
- uint8_t Adafruit_ST7735::readdata(void) {
- *portOutputRegister(rsport) |= rspin;
- 
- *portOutputRegister(csport) &= ~ cspin;
- 
- uint8_t r = spiread();
- 
- *portOutputRegister(csport) |= cspin;
- 
- return r;
- 
- } 
- 
- uint8_t Adafruit_ST7735::readcommand8(uint8_t c) {
- digitalWrite(_rs, LOW);
- 
- *portOutputRegister(csport) &= ~ cspin;
- 
- spiwrite(c);
- 
- digitalWrite(_rs, HIGH);
- pinMode(_sid, INPUT); // input!
- digitalWrite(_sid, LOW); // low
- spiread();
- uint8_t r = spiread();
- 
- 
- *portOutputRegister(csport) |= cspin;
- 
- 
- pinMode(_sid, OUTPUT); // back to output
- return r;
- }
- 
- 
- uint16_t Adafruit_ST7735::readcommand16(uint8_t c) {
- digitalWrite(_rs, LOW);
- if (_cs)
- digitalWrite(_cs, LOW);
- 
- spiwrite(c);
- pinMode(_sid, INPUT); // input!
- uint16_t r = spiread();
- r <<= 8;
- r |= spiread();
- if (_cs)
- digitalWrite(_cs, HIGH);
- 
- pinMode(_sid, OUTPUT); // back to output
- return r;
- }
- 
- uint32_t Adafruit_ST7735::readcommand32(uint8_t c) {
- digitalWrite(_rs, LOW);
- if (_cs)
- digitalWrite(_cs, LOW);
- spiwrite(c);
- pinMode(_sid, INPUT); // input!
- 
- dummyclock();
- dummyclock();
- 
- uint32_t r = spiread();
- r <<= 8;
- r |= spiread();
- r <<= 8;
- r |= spiread();
- r <<= 8;
- r |= spiread();
- if (_cs)
- digitalWrite(_cs, HIGH);
- 
- pinMode(_sid, OUTPUT); // back to output
- return r;
- }
- 
- */
+    /* Get marker symbol from input stream */
+    inpos = 0;
+    marker = in[ inpos ++ ];
+	
+    /* Main decompression loop */
+    outpos = 0;
+	int curPos = 0;
+    do
+    {
+        symbol = in[ inpos ++ ];
+        if( symbol == marker )
+        {
+            /* We had a marker byte */
+            count = in[ inpos ++ ];
+            if( count <= 2 )
+            {
+                /* Counts 0, 1 and 2 are used for marker byte repetition
+                   only */
+				curPos= outpos++;
+				out[ curPos ].colorIdx = marker;
+				out[ curPos ].rLength = count;
+            }
+            else
+            {
+                curPos = outpos++;			
+				symbol = in[inpos++];
+				out[ curPos ].colorIdx = symbol;
+				out[ curPos ].rLength = count;
+            }
+        }
+        else
+        {
+            /* No marker, plain copy */
+			curPos = outpos++;
+            out[ curPos ].colorIdx = symbol;
+			out[ curPos ].rLength = 1;
+        }
+    }
+    while( inpos < insize );
+	return outpos;// return valid size of array
+}
