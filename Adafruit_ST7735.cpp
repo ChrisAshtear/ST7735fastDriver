@@ -583,7 +583,7 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
     endDraw();
 }
 
-void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RLE_data graphic[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
@@ -610,6 +610,56 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 		iterator = w;
 		iterator -= h;
 	}*/
+	uint8_t palHi[palSize] = palH;
+	uint8_t palLo[palSize] = palL;
+	
+	   unsigned char marker, symbol;
+    unsigned int  i, inpos, outpos, count;
+
+
+    /* Get marker symbol from input stream */
+    inpos = 0;
+	marker = pgm_read_byte(&colorIndex[inpos++]);
+	
+	
+    /* Main decompression loop */
+    outpos = 0;
+	int curPos = 0;
+    do
+    {
+        symbol = pgm_read_byte(&colorIndex[inpos++]);
+        if( symbol == marker )
+        {
+            /* We had a marker byte */
+            count = pgm_read_byte(&colorIndex[inpos++]);
+            if( count <= 2 )
+            {
+                /* Counts 0, 1 and 2 are used for marker byte repetition
+                   only */
+				
+				uint8_t color = pgm_read_byte(&colorIndex[outpos++]);
+			
+				iterator +=itXAdder;
+
+				drawFastPixel(x+i, y, palHi[symbol], palLo[symbol]);
+            }
+            else
+            {
+                curPos = outpos++;			
+				symbol = in[inpos++];
+            }
+        }
+        else
+        {
+            /* No marker, plain copy */
+			curPos = outpos++;
+            drawFastPixel(x+i, y, palHi[symbol], palLo[symbol]);
+        }
+    }
+    while( inpos < insize );
+	return outpos;// return valid size of array
+	
+	
 	
     startDraw(x,y,x+w-1,y+h-1);
 	uint8_t pixelsDrawn = 0;

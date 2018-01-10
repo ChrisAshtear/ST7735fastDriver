@@ -142,6 +142,11 @@ struct RLE_data
 {
   unsigned char colorIdx;
   uint8_t rLength;
+  
+  Vector2f(unsigned char idx, uint8_t rL) {
+  colorIdx = idx;
+  rLength = rL;
+};
 };
 
 class Adafruit_ST7735 : public Adafruit_GFX {
