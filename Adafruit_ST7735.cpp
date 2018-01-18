@@ -576,8 +576,10 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	for(uint8_t j=0; j<RLEsize;j++)
 	{
 		uint8_t color = pgm_read_byte(&colorIndex[j]);
+		//start rle read
 		uint8_t rLength = (color >> 4) & 0xF;
 		uint8_t colorID = color & 0xF;
+		//end rle read
 		uint16_t finalColor = pgm_read_word(&pal[colorID]);
 		uint8_t hi = finalColor >> 8, lo = finalColor;
 		
@@ -632,6 +634,27 @@ void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
 			}
         }
     }
+}
+
+void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, uint8_t length, const char text[], const uint8_t font, uint16_t fontSize,const uint16_t pal[])
+{
+	//size 8
+	//tileFont
+	//pal, black & white?
+	//152x16
+	//sep loop to convert char to id
+	//A=65: tileID=10:
+	//0=48: tileID=0:
+	//can put special chars between 57&65(6chars) to get rid of if statement.
+	uint8_t tileID = 0;
+	uint8_t asciiOffset = 55; // adjust from ascii code to tileID
+	uint8_t xOffset = 0;
+	for(uint8_t i =0; i< length; i++)
+	{
+		tileID = text[i] - asciiOffset;
+		drawCBMPsectionRLE(x+xOffset, y, 8, 8, font, fontSize, pal, 176, 16, tileID, false, false);
+		xOffset += 8;
+	}
 }
 
 void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID) {
