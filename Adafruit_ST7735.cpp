@@ -374,48 +374,22 @@ void Adafruit_ST7735::commonInit(const uint8_t *cmdList) {
 }
 
 
-// Initialization for ST7735B screens
-void Adafruit_ST7735::initB(void) {
-  commonInit(Bcmd);
-
-  setRotation(0);
-}
-
-
 // Initialization for ST7735R screens (green or red tabs)
 void Adafruit_ST7735::initR(uint8_t options) {
-  commonInit(Rcmd1);
-  if(options == INITR_GREENTAB) {
-    commandList(Rcmd2green);
-    colstart = 2;
-    rowstart = 1;
-  } else if(options == INITR_144GREENTAB) {
-    _height = ST7735_TFTHEIGHT_128;
-    _width = ST7735_TFTWIDTH_128;
-    commandList(Rcmd2green144);
-    colstart = 2;
-    rowstart = 3;
-  } else if(options == INITR_MINI160x80) {
-    _height = ST7735_TFTHEIGHT_160;
-    _width = ST7735_TFTWIDTH_80;
-    commandList(Rcmd2green160x80);
-    colstart = 24;
-    rowstart = 0;
-  } else {
-    // colstart, rowstart left at default '0' values
-    commandList(Rcmd2red);
-  }
-  commandList(Rcmd3);
+	commonInit(Rcmd1);
 
-  // if black, change MADCTL color filter
-  if ((options == INITR_BLACKTAB) || (options == INITR_MINI160x80)) {
-    writecommand(ST7735_MADCTL);
-    writedata(0xC0);
-  }
+	_height = ST7735_TFTHEIGHT_128;
+	_width = ST7735_TFTWIDTH_128;
+	commandList(Rcmd2green144);
+	colstart = 2;
 
-  tabcolor = options;
+	commandList(Rcmd3);
 
-  setRotation(0);
+
+
+	tabcolor = options;
+
+	setRotation(0);
 }
 
 
@@ -592,84 +566,22 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	uint8_t line = ((sectionID * w) / imageW);
 	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
 	
-	/*int itXAdder = 1;
-	int itYAdder = imageW - w;
-	
-	if (flipV)
-	{
-		itXAdder = -1;
-		itYAdder = -(imageW - w);
 
-		iterator = w*h;//this  will only work for non tiles - imageW same as w.
-		//iterator -= h;
-	}
-	if(flipH)
-	{
-		itXAdder = -1;
-		itYAdder = w*2;
-		iterator = w;
-		iterator -= h;
-	}*/
-	uint8_t palHi[palSize] = palH;
-	uint8_t palLo[palSize] = palL;
-	
-	   unsigned char marker, symbol;
-    unsigned int  i, inpos, outpos, count;
-
-
-    /* Get marker symbol from input stream */
-    inpos = 0;
-	marker = pgm_read_byte(&colorIndex[inpos++]);
-	
-	
-    /* Main decompression loop */
-    outpos = 0;
-	int curPos = 0;
-    do
-    {
-        symbol = pgm_read_byte(&colorIndex[inpos++]);
-        if( symbol == marker )
-        {
-            /* We had a marker byte */
-            count = pgm_read_byte(&colorIndex[inpos++]);
-            if( count <= 2 )
-            {
-                /* Counts 0, 1 and 2 are used for marker byte repetition
-                   only */
-				
-				uint8_t color = pgm_read_byte(&colorIndex[outpos++]);
-			
-				iterator +=itXAdder;
-
-				drawFastPixel(x+i, y, palHi[symbol], palLo[symbol]);
-            }
-            else
-            {
-                curPos = outpos++;			
-				symbol = in[inpos++];
-            }
-        }
-        else
-        {
-            /* No marker, plain copy */
-			curPos = outpos++;
-            drawFastPixel(x+i, y, palHi[symbol], palLo[symbol]);
-        }
-    }
-    while( inpos < insize );
-	return outpos;// return valid size of array
-	
+	//uint8_t palHi[palSize] = palH;
+	//uint8_t palLo[palSize] = palL;
 	
 	
     startDraw(x,y,x+w-1,y+h-1);
 	uint8_t pixelsDrawn = 0;
 	for(uint8_t j=0; j<RLEsize;j++)
 	{
-		uint8_t color = graphic[j].colorIdx;
-		uint16_t finalColor = pgm_read_word(&pal[color]);
+		uint8_t color = pgm_read_byte(&colorIndex[j]);
+		uint8_t rLength = (color >> 4) & 0xF;
+		uint8_t colorID = color & 0xF;
+		uint16_t finalColor = pgm_read_word(&pal[colorID]);
 		uint8_t hi = finalColor >> 8, lo = finalColor;
 		
-		for(uint8_t i = 0; i<graphic[j].rLength;i++,pixelsDrawn++)
+		for(uint8_t i = 0; i<RLEsize;i++,pixelsDrawn++)
 		{
 			drawFastPixel(x+i, y, hi, lo);
 			if(pixelsDrawn >= w)
@@ -684,6 +596,7 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	}
 
     endDraw();
+	
 }
 
 //Draw Slow Color BMPs, with transparency.
@@ -863,86 +776,42 @@ void Adafruit_ST7735::setRotation(uint8_t m) {
   rotation = m % 4; // can't be higher than 3
   switch (rotation) {
    case 0:
-     if ((tabcolor == INITR_BLACKTAB) || (tabcolor == INITR_MINI160x80)) {
-       writedata(MADCTL_MX | MADCTL_MY | MADCTL_RGB);
-     } else {
-       writedata(MADCTL_MX | MADCTL_MY | MADCTL_BGR);
-     }
+	writedata(MADCTL_MX | MADCTL_MY | MADCTL_BGR);
 
-     if (tabcolor == INITR_144GREENTAB) {
-       _height = ST7735_TFTHEIGHT_128;
-       _width  = ST7735_TFTWIDTH_128;
-     } else if (tabcolor == INITR_MINI160x80)  {
-       _height = ST7735_TFTHEIGHT_160;
-       _width = ST7735_TFTWIDTH_80;
-     } else {
-       _height = ST7735_TFTHEIGHT_160;
-       _width  = ST7735_TFTWIDTH_128;
-     }
-     xstart = colstart;
-     ystart = rowstart;
+
+	_height = ST7735_TFTHEIGHT_128;
+	_width  = ST7735_TFTWIDTH_128;
+     
      break;
    case 1:
-     if ((tabcolor == INITR_BLACKTAB) || (tabcolor == INITR_MINI160x80)) {
-       writedata(MADCTL_MY | MADCTL_MV | MADCTL_RGB);
-     } else {
-       writedata(MADCTL_MY | MADCTL_MV | MADCTL_BGR);
-     }
 
-     if (tabcolor == INITR_144GREENTAB)  {
+       writedata(MADCTL_MY | MADCTL_MV | MADCTL_BGR);
+
+
+
        _width = ST7735_TFTHEIGHT_128;
        _height = ST7735_TFTWIDTH_128;
-     } else if (tabcolor == INITR_MINI160x80)  {
-       _width = ST7735_TFTHEIGHT_160;
-       _height = ST7735_TFTWIDTH_80;
-     } else {
-       _width = ST7735_TFTHEIGHT_160;
-       _height = ST7735_TFTWIDTH_128;
-     }
-     ystart = colstart;
-     xstart = rowstart;
+
      break;
   case 2:
-     if ((tabcolor == INITR_BLACKTAB) || (tabcolor == INITR_MINI160x80)) {
-       writedata(MADCTL_RGB);
-     } else {
-       writedata(MADCTL_BGR);
-     }
 
-     if (tabcolor == INITR_144GREENTAB) {
+       writedata(MADCTL_BGR);
        _height = ST7735_TFTHEIGHT_128;
        _width  = ST7735_TFTWIDTH_128;
-     } else if (tabcolor == INITR_MINI160x80)  {
-       _height = ST7735_TFTHEIGHT_160;
-       _width = ST7735_TFTWIDTH_80;
-     } else {
-       _height = ST7735_TFTHEIGHT_160;
-       _width  = ST7735_TFTWIDTH_128;
-     }
-     xstart = colstart;
-     ystart = rowstart;
+
      break;
    case 3:
-     if ((tabcolor == INITR_BLACKTAB) || (tabcolor == INITR_MINI160x80)) {
-       writedata(MADCTL_MX | MADCTL_MV | MADCTL_RGB);
-     } else {
-       writedata(MADCTL_MX | MADCTL_MV | MADCTL_BGR);
-     }
 
-     if (tabcolor == INITR_144GREENTAB)  {
+       writedata(MADCTL_MX | MADCTL_MV | MADCTL_BGR);
+
        _width = ST7735_TFTHEIGHT_128;
        _height = ST7735_TFTWIDTH_128;
-     } else if (tabcolor == INITR_MINI160x80)  {
-       _width = ST7735_TFTHEIGHT_160;
-       _height = ST7735_TFTWIDTH_80;
-     } else {
-       _width = ST7735_TFTHEIGHT_160;
-       _height = ST7735_TFTWIDTH_128;
-     }
-     ystart = colstart;
-     xstart = rowstart;
+     
+     
      break;
   }
+  ystart = colstart;
+  xstart = rowstart;
 }
 
 
@@ -984,69 +853,4 @@ inline void Adafruit_ST7735::DC_LOW(void) {
 #else
   digitalWrite(_dc, LOW);
 #endif
-}
-
-//this is just a base - we dont need to save this to a buffer, we need to render it every frame.
-//assuming performance isnt badly affected.
-//a new draw routine needs to be created for tiles/bmps - being able to draw sections is going to require decoding part of the file.
-/*************************************************************************
-* RLE_Uncompress() - Uncompress a block of data using an RLE decoder.
-*  in      - Input (compressed) buffer.
-*  out     - Output RLEdata array. this is used by a draw routine.
-*  insize  - Number of input bytes.
-*  return  - size of array
-*************************************************************************/
-//need way to get length of array, before or after creation
-int RLE_Uncompress( unsigned char *in, RLE_data *out,
-    unsigned int insize )
-{
-    unsigned char marker, symbol;
-    unsigned int  i, inpos, outpos, count;
-
-    /* Do we have anything to uncompress? */
-    if( insize < 1 )
-    {
-        return 0;
-    }
-
-    /* Get marker symbol from input stream */
-    inpos = 0;
-    marker = in[ inpos ++ ];
-	
-    /* Main decompression loop */
-    outpos = 0;
-	int curPos = 0;
-    do
-    {
-        symbol = in[ inpos ++ ];
-        if( symbol == marker )
-        {
-            /* We had a marker byte */
-            count = in[ inpos ++ ];
-            if( count <= 2 )
-            {
-                /* Counts 0, 1 and 2 are used for marker byte repetition
-                   only */
-				curPos= outpos++;
-				out[ curPos ].colorIdx = marker;
-				out[ curPos ].rLength = count;
-            }
-            else
-            {
-                curPos = outpos++;			
-				symbol = in[inpos++];
-				out[ curPos ].colorIdx = symbol;
-				out[ curPos ].rLength = count;
-            }
-        }
-        else
-        {
-            /* No marker, plain copy */
-			curPos = outpos++;
-            out[ curPos ].colorIdx = symbol;
-			out[ curPos ].rLength = 1;
-        }
-    }
-    while( inpos < insize );
-	return outpos;// return valid size of array
 }
