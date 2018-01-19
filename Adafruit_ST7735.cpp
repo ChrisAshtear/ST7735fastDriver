@@ -573,17 +573,21 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	
     startDraw(x,y,x+w-1,y+h-1);
 	uint8_t pixelsDrawn = 0;
+	uint8_t rLength = 0;
+	uint8_t colorID = 0;
+	
 	for(uint8_t j=0; j<RLEsize;j++)
 	{
 		uint8_t color = pgm_read_byte(&colorIndex[j]);
 		//start rle read
-		uint8_t rLength = (color >> 4) & 0xF;
-		uint8_t colorID = color & 0xF;
+		//rle_4_bit(color,rLength,colorID);
+		rLength = color & 0xF;
+		colorID = (color >> 4) & 0xF;
 		//end rle read
 		uint16_t finalColor = pgm_read_word(&pal[colorID]);
 		uint8_t hi = finalColor >> 8, lo = finalColor;
 		
-		for(uint8_t i = 0; i<RLEsize;i++,pixelsDrawn++)
+		for(uint8_t i = 0; i<rLength+1;i++,pixelsDrawn++)
 		{
 			drawFastPixel(x+i, y, hi, lo);
 			if(pixelsDrawn >= w)
@@ -657,6 +661,7 @@ void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, uint8_t length, const char 
 	}
 }
 
+/* This does not give a large performance increase, and is not being used.
 void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
@@ -681,6 +686,18 @@ void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, co
 		iterator += itYAdder;
 		//iterator+= imageW - w;//}
     }
+}*/
+
+uint8_t Adafruit_ST7735::rle_4_bit(uint8_t &input, uint8_t &outputColor, uint8_t &outputLength)
+{
+	outputLength = (input >> 4) & 0xF;
+	outputColor = input & 0xF;
+}
+
+uint8_t Adafruit_ST7735::rle_1_bit(uint8_t &input, uint8_t &outputColor, uint8_t &outputLength)
+{
+	outputLength = (input >> 4) & 0xF;
+	outputColor = input & 0xF;
 }
 
 void Adafruit_ST7735::drawFastVLine(int16_t x, int16_t y, int16_t h,

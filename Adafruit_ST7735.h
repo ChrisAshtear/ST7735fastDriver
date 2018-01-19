@@ -169,10 +169,11 @@ class Adafruit_ST7735 : public Adafruit_GFX {
            drawPixel(int16_t x, int16_t y, uint16_t color),
 		   drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)/*NEED TO USE startDraw/endDraw before & after this function*/,
 		   startDraw(int16_t x, int16_t y, int16_t w, int16_t h),
+		   drawFont(uint8_t x, uint8_t y, uint8_t length, const char text[], const uint8_t font, uint16_t fontSize,const uint16_t pal[]), //Tilemap Font
 		   drawFastBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, uint16_t color,uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[],bool flipH,bool FlipV)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   drawColorBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
-		   drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID)/*MUST USE START/END DRAW WITH THIS*/,
+		   //drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID)/*MUST USE START/END DRAW WITH THIS*/,
 		   drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID,bool flipH,bool FlipV),
 		   drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV),
 		   endDraw(),
@@ -185,6 +186,9 @@ class Adafruit_ST7735 : public Adafruit_GFX {
   uint16_t Color565(uint8_t r, uint8_t g, uint8_t b);
   
   int RLE_Uncompress( unsigned char *in, RLE_data *out, unsigned int insize ); //uncompress encoded bitmap/tilemap
+  
+  uint8_t rle_4_bit(uint8_t &input, uint8_t &outputColor, uint8_t &outputLength); //uncompress 16-color RLE bitmaps
+  uint8_t rle_1_bit(uint8_t &input, uint8_t &outputColor, uint8_t &outputLength); //uncompress monochrome RLE bitmaps
 
   /* These are not for current use, 8-bit protocol only!
   uint8_t  readdata(void),
