@@ -640,12 +640,15 @@ void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
     }
 }
 
-void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, uint8_t length, const char text[], const uint8_t font, uint16_t fontSize,const uint16_t pal[])
+void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, const char text[],const uint16_t color)
 {
 	//size 8
 	//tileFont
 	//pal, black & white?
 	//152x16
+	uint8_t fontWidth = 152;
+uint8_t fontHeight = 16;
+uint8_t fTileSize = 8;
 	//sep loop to convert char to id
 	//A=65: tileID=10:
 	//0=48: tileID=0:
@@ -656,10 +659,20 @@ void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, uint8_t length, const char 
 	for(uint8_t i =0; i< length; i++)
 	{
 		tileID = text[i] - asciiOffset;
-		drawCBMPsectionRLE(x+xOffset, y, 8, 8, font, fontSize, pal, 176, 16, tileID, false, false);
+		drawCBMPsectionRLE(x+xOffset, y, fTileSize, fTileSize, font, pal, fontWidth, fontHeight, tileID, false, false);
 		xOffset += 8;
 	}
 }
+
+/*void readBMPdata(uint8_t 
+{
+	
+}*/
+
+//4-bit RLE read.
+/*void readCBMPdata(
+{
+}*/
 
 /* This does not give a large performance increase, and is not being used.
 void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID) {
