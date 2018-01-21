@@ -493,9 +493,10 @@ void Adafruit_ST7735::drawFastBitmap(int16_t x, int16_t y,
     }
     endDraw();
 }
+
 //Draw fast bitmap, non-transparent
 void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[],bool flipH, bool flipV) {
-	drawCBMPsection(x,y,w,h,colorIndex,pal,w,h,0,flipH,flipV);
+	drawCBMPsection(x,y,w,h,colorIndex,pal,w,h,0,flipH,flipV,4);
 }
 //FLIP image vertically, can just draw last line first, then go up
 //RGB 4-4-4 mode, 1byte, 1 pixel. 3AH = 03h
@@ -513,14 +514,29 @@ void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16
 //DRAW 1-bit bmp section, for use with fonts. ADAfruits GFX font routine is HUGE.
 
 //need to compact CIDX to 4bit
-void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV, uint8_t bitDepth) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
+	
+	//1-bit vars
+	int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+    uint8_t byte = 0;
+	uint16_t monoCol = pgm_read_word(&pal[0]);
+	uint16_t monoBG = pgm_read_word(&pal[1]);
+	uint8_t hi = monoCol >> 8, lo = monoCol;
+	uint8_t hi_bg = monoBG >> 8, lo_bg = monoBG;
+	uint16_t startAddr = sectionID * (w*h);
+	//end 1-bit vars
+	
 
 	//get correct address position of the tile we want
 	uint8_t line = ((sectionID * w) / imageW);
 	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
+	
+	//4bitvals
+	uint16_t finalColor;
+	uint8_t color;
 	
 	int itXAdder = 1;
 	int itYAdder = imageW - w;
@@ -540,16 +556,37 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
 		iterator = w;
 		iterator -= h;
 	}
-	
+	unsigned char digit[] = {0xff, 0xc3, 0x81, 0xbd, 0xbd, 0x81, 0xc3, 0xff};
     startDraw(x,y,x+w-1,y+h-1);
     for(uint8_t j=0; j<h; j+=1, y++) {
         for(uint8_t i=0; i<w; i++) {
-			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
+			switch(bitDepth)
+			{
+				case 4: 
+				color = pgm_read_byte(&colorIndex[iterator]);
+				
+				
+				//move to a var- should also do bit shifting on load.
+				finalColor = pgm_read_word(&pal[color]);
+				drawFastPixel(x+i, y, finalColor >> 8, finalColor);
+				break;
+				
+				case 1:
+				if((i+startAddr)& 7) byte <<= 1;
+				else      byte   = pgm_read_byte(&colorIndex[(j * byteWidth + (i+startAddr)/ 8)]);
+				if(byte & 0x80)
+				{
+					//if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
+					drawFastPixel(0, 0, hi,lo);
+				}
+				else //Looks like we need to write a background color for FastBG, because we have a screen area that gets written to sequentially, not sure how to skip yet.
+				{
+					drawFastPixel(0, 0, hi_bg,lo_bg);
+				}
+				break;
+				iterator +=itXAdder;
+			};
 			
-			iterator +=itXAdder;
-			//move to a var- should also do bit shifting on load.
-			uint16_t finalColor = pgm_read_word(&pal[color]);
-			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
         }
 		iterator += itYAdder;
 		//iterator+= imageW - w;//}
@@ -572,10 +609,12 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	
 	
     startDraw(x,y,x+w-1,y+h-1);
-	uint8_t pixelsDrawn = 0;
+	//uint8_t pixelsDrawn = 0;
 	uint8_t rLength = 0;
 	uint8_t colorID = 0;
-	
+	uint8_t linehi[w]; // for flip
+	uint8_t linelo[w];
+	uint8_t lineCtr = 0;
 	for(uint8_t j=0; j<RLEsize;j++)
 	{
 		uint8_t color = pgm_read_byte(&colorIndex[j]);
@@ -587,13 +626,25 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 		uint16_t finalColor = pgm_read_word(&pal[colorID]);
 		uint8_t hi = finalColor >> 8, lo = finalColor;
 		
-		for(uint8_t i = 0; i<rLength+1;i++,pixelsDrawn++)
+		for(uint8_t i = 0; i<rLength+1;i++)
 		{
-			drawFastPixel(x+i, y, hi, lo);
-			if(pixelsDrawn >= w)
+			if(flipH)
 			{
-				pixelsDrawn = 0;
-				y++;
+				linehi[lineCtr] = hi;
+				linelo[lineCtr] = lo;
+				lineCtr++;
+				if(lineCtr >= w)
+				{
+					lineCtr = 0;
+					for(uint8_t k=w;k>0;k--)
+					{
+						drawFastPixel(0, 0, linehi[k], linelo[k]);
+					}
+				}
+			}
+			else
+			{
+				drawFastPixel(0, 0, hi, lo);
 			}
 		}
 		//will probably need checks to see if rectFill exceeds graphic width
@@ -640,26 +691,24 @@ void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
     }
 }
 
-void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y, const char text[],const uint16_t color)
+void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y,String text)
 {
-	//size 8
-	//tileFont
-	//pal, black & white?
-	//152x16
-	uint8_t fontWidth = 152;
-uint8_t fontHeight = 16;
-uint8_t fTileSize = 8;
-	//sep loop to convert char to id
 	//A=65: tileID=10:
 	//0=48: tileID=0:
 	//can put special chars between 57&65(6chars) to get rid of if statement.
-	uint8_t tileID = 0;
-	uint8_t asciiOffset = 55; // adjust from ascii code to tileID
-	uint8_t xOffset = 0;
-	for(uint8_t i =0; i< length; i++)
+	uint8_t tileID;
+	//uint8_t asciiOffset = 55; // adjust from ascii code to tileID
+	uint8_t xOffset;
+	uint8_t len = text.length();
+	for(uint8_t i =0; i< len; i++)
 	{
-		tileID = text[i] - asciiOffset;
-		drawCBMPsectionRLE(x+xOffset, y, fTileSize, fTileSize, font, pal, fontWidth, fontHeight, tileID, false, false);
+		tileID = text[i] - 48;
+		if(tileID > 50)
+		{
+			tileID = 11;//space
+		}
+		drawCBMPsection(x+xOffset, y, FONT_TILESZ, FONT_TILESZ, tileFont, fontCol, FONT_WIDTH, FONT_HEIGHT, tileID, false, false,1);
+		//drawFastBitmap(x+xOffset, y,tileFont, 8, 8, fontCol[0],fontCol[1]);
 		xOffset += 8;
 	}
 }
