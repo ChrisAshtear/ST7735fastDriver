@@ -432,11 +432,11 @@ void Adafruit_ST7735::drawPixel(int16_t x, int16_t y, uint16_t color) {
 
   uint8_t hi = color >> 8, lo = color;
   startDraw(x,y,x+1,y+1);
-  drawFastPixel(x,y,hi,lo);
+  drawFastPixel(hi,lo);
   endDraw();
 }
 //REPLACE THESE WITH writePixel/startWrite/endWrite, once all other functions are modified to take start/endwrite into account.
-void Adafruit_ST7735::drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)
+void Adafruit_ST7735::drawFastPixel(uint8_t hi_c,uint8_t lo_c)
 {
 	spiwrite(hi_c);
 	spiwrite(lo_c);
@@ -483,11 +483,11 @@ void Adafruit_ST7735::drawFastBitmap(int16_t x, int16_t y,
             if(byte & 0x80)
 			{
 				//if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
-				drawFastPixel(x+i, y, hi,lo);
+				drawFastPixel(hi,lo);
 			}
 			else //Looks like we need to write a background color for FastBG, because we have a screen area that gets written to sequentially, not sure how to skip yet.
 			{
-				drawFastPixel(x+i, y, hi_bg,lo_bg);
+				drawFastPixel(hi_bg,lo_bg);
 			}
         }
     }
@@ -568,7 +568,7 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
 				
 				//move to a var- should also do bit shifting on load.
 				finalColor = pgm_read_word(&pal[color]);
-				drawFastPixel(x+i, y, finalColor >> 8, finalColor);
+				drawFastPixel(finalColor >> 8, finalColor);
 				break;
 				
 				case 1:
@@ -577,11 +577,11 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
 				if(byte & 0x80)
 				{
 					//if((x < 0) ||(x >= _width) || (y < 0) || (y >= _height)) return;
-					drawFastPixel(0, 0, hi,lo);
+					drawFastPixel(hi,lo);
 				}
 				else //Looks like we need to write a background color for FastBG, because we have a screen area that gets written to sequentially, not sure how to skip yet.
 				{
-					drawFastPixel(0, 0, hi_bg,lo_bg);
+					drawFastPixel(hi_bg,lo_bg);
 				}
 				break;
 				iterator +=itXAdder;
@@ -638,13 +638,13 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 					lineCtr = 0;
 					for(uint8_t k=w;k>0;k--)
 					{
-						drawFastPixel(0, 0, linehi[k], linelo[k]);
+						drawFastPixel(linehi[k], linelo[k]);
 					}
 				}
 			}
 			else
 			{
-				drawFastPixel(0, 0, hi, lo);
+				drawFastPixel(hi, lo);
 			}
 		}
 		//will probably need checks to see if rectFill exceeds graphic width
@@ -685,7 +685,7 @@ void Adafruit_ST7735::drawColorBitmap(int16_t x, int16_t y,
 				
 				uint16_t finalColor = pgm_read_word(&pal[color]);//convert 8 to 16 iterator
 				//drawFastPixel(x+i, y, finalColor >> 8, finalColor);
-				drawPixel(x+i,y,finalColor);
+				//drawPixel(finalColor);
 			}
         }
     }

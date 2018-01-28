@@ -518,7 +518,7 @@ class Adafruit_ST7735 : public Adafruit_GFX {
            pushColor(uint16_t color),
            fillScreen(uint16_t color),
            drawPixel(int16_t x, int16_t y, uint16_t color),
-		   drawFastPixel(int16_t x, int16_t y, uint8_t hi_c,uint8_t lo_c)/*NEED TO USE startDraw/endDraw before & after this function*/,
+		   drawFastPixel(uint8_t hi_c,uint8_t lo_c)/*NEED TO USE startDraw/endDraw before & after this function*/,
 		   startDraw(int16_t x, int16_t y, int16_t w, int16_t h),
 		   drawFont(uint8_t x, uint8_t y, String text), //Tilemap Font
 		   drawFastBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, uint16_t color,uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
