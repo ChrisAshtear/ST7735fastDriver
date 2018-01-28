@@ -144,6 +144,8 @@ as well as Adafruit raw 1.8" TFT display
 
 const uint16_t PROGMEM fontCol[] = { 0xFFFF,0x0000 };
 
+const uint16_t PROGMEM emptyTiles[] = {1,0};
+
 const unsigned char PROGMEM tileFont[] =
 {
    0xff, 
@@ -526,7 +528,7 @@ class Adafruit_ST7735 : public Adafruit_GFX {
 		   drawColorBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[], uint16_t bg)/*DRAWS STANDALONE BITMAP. IF DRAWING TILES USE */,
 		   //drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID)/*MUST USE START/END DRAW WITH THIS*/,
 		   drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID,bool flipH,bool FlipV,uint8_t bitDepth),
-		   drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV),
+		   drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t tileAddr[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV),
 		   endDraw(),
            drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color),
            drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color),

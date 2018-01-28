@@ -496,7 +496,7 @@ void Adafruit_ST7735::drawFastBitmap(int16_t x, int16_t y,
 
 //Draw fast bitmap, non-transparent
 void Adafruit_ST7735::drawFastColorBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t colorIndex[], const uint16_t pal[],bool flipH, bool flipV) {
-	drawCBMPsection(x,y,w,h,colorIndex,pal,w,h,0,flipH,flipV,4);
+	drawCBMPsectionRLE(x,y,w,h,colorIndex,emptyTiles,pal,w,h,0,flipH,flipV);
 }
 //FLIP image vertically, can just draw last line first, then go up
 //RGB 4-4-4 mode, 1byte, 1 pixel. 3AH = 03h
@@ -594,7 +594,7 @@ void Adafruit_ST7735::drawCBMPsection(uint8_t x, uint8_t y, uint8_t w, uint8_t h
     endDraw();
 }
 
-void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], uint8_t RLEsize, const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
+void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t tileAddr[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID, bool flipH, bool flipV) {
 
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
@@ -606,16 +606,23 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 
 	//uint8_t palHi[palSize] = palH;
 	//uint8_t palLo[palSize] = palL;
-	
+	uint8_t tiles =tileAddr[0];
 	
     startDraw(x,y,x+w-1,y+h-1);
-	//uint8_t pixelsDrawn = 0;
+
 	uint8_t rLength = 0;
 	uint8_t colorID = 0;
 	uint8_t linehi[w]; // for flip
 	uint8_t linelo[w];
 	uint8_t lineCtr = 0;
-	for(uint8_t j=0; j<RLEsize;j++)
+	uint16_t imageSz = w*h;
+	uint16_t startAddr = 0;
+	uint16_t pixelsDrawn=0;
+	if(tiles >= sectionID)
+	{
+		startAddr = pgm_read_word(&tileAddr[sectionID+1]);
+	}
+	for(uint16_t j=startAddr; pixelsDrawn<imageSz;j++)
 	{
 		uint8_t color = pgm_read_byte(&colorIndex[j]);
 		//start rle read
@@ -647,6 +654,7 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 				drawFastPixel(hi, lo);
 			}
 		}
+		pixelsDrawn+=rLength+1;
 		//will probably need checks to see if rectFill exceeds graphic width
 		//pixels drawn var
 		
