@@ -61,72 +61,52 @@ Adafruit_ST7735::Adafruit_ST7735(int8_t cs, int8_t dc, int8_t rst)
   _sid  = _sclk = -1;
 }
 
-inline void Adafruit_ST7735::spiwrite(uint8_t c) {
-
-  //Serial.println(c, HEX);
-
-  if (hwSPI) {
-#if defined (SPI_HAS_TRANSACTION)
-      SPI.transfer(c);
-#elif defined (__AVR__) || defined(CORE_TEENSY)
-      SPCRbackup = SPCR;
-      SPCR = mySPCR;
-      SPI.transfer(c);
-      SPCR = SPCRbackup;
-#elif defined (__arm__)
-      SPI.setClockDivider(21); //4MHz
-      SPI.setDataMode(SPI_MODE0);
-      SPI.transfer(c);
-#endif
-  } else {
-
-    // Fast SPI bitbang swiped from LPD8806 library
-    for(uint8_t bit = 0x80; bit; bit >>= 1) {
-#if defined(USE_FAST_IO)
-      if(c & bit) *dataport |=  datapinmask;
-      else        *dataport &= ~datapinmask;
-      *clkport |=  clkpinmask;
-      *clkport &= ~clkpinmask;
-#else
-      if(c & bit) digitalWrite(_sid, HIGH);
-      else        digitalWrite(_sid, LOW);
-      digitalWrite(_sclk, HIGH);
-      digitalWrite(_sclk, LOW);
-#endif
-    }
-  }
+inline void Adafruit_ST7735::spiwrite(uint8_t c) 
+{
+	#if defined (SPI_HAS_TRANSACTION)
+		  SPI.transfer(c);
+	#elif defined (__AVR__) || defined(CORE_TEENSY)
+		  SPCRbackup = SPCR;
+		  SPCR = mySPCR;
+		  SPI.transfer(c);
+		  SPCR = SPCRbackup;
+	#elif defined (__arm__)
+		  SPI.setClockDivider(21); //4MHz
+		  SPI.setDataMode(SPI_MODE0);
+		  SPI.transfer(c);
+	#endif
 }
 
 
 void Adafruit_ST7735::writecommand(uint8_t c) {
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.beginTransaction(mySPISettings);
-#endif
-  DC_LOW();
-  CS_LOW();
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.beginTransaction(mySPISettings);
+	#endif
+	  DC_LOW();
+	  CS_LOW();
 
-  spiwrite(c);
+	  spiwrite(c);
 
-  CS_HIGH();
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.endTransaction();
-#endif
+	  CS_HIGH();
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.endTransaction();
+	#endif
 }
 
 
 void Adafruit_ST7735::writedata(uint8_t c) {
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.beginTransaction(mySPISettings);
-#endif
-  DC_HIGH();
-  CS_LOW();
-    
-  spiwrite(c);
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.beginTransaction(mySPISettings);
+	#endif
+	  DC_HIGH();
+	  CS_LOW();
+		
+	  spiwrite(c);
 
-  CS_HIGH();
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.endTransaction();
-#endif
+	  CS_HIGH();
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.endTransaction();
+	#endif
 }
 
 // Rather than a bazillion writecommand() and writedata() calls, screen
@@ -327,10 +307,9 @@ void Adafruit_ST7735::commonInit(const uint8_t *cmdList) {
   dcpinmask = digitalPinToBitMask(_dc);
 #endif
 
-  if(hwSPI) { // Using hardware SPI
 #if defined (SPI_HAS_TRANSACTION)
     SPI.begin();
-    mySPISettings = SPISettings(8000000, MSBFIRST, SPI_MODE0);
+    mySPISettings = SPISettings(16000000, MSBFIRST, SPI_MODE0);
 #elif defined (__AVR__) || defined(CORE_TEENSY)
     SPCRbackup = SPCR;
     SPI.begin();
@@ -344,19 +323,6 @@ void Adafruit_ST7735::commonInit(const uint8_t *cmdList) {
     SPI.setClockDivider(21); //4MHz
     SPI.setDataMode(SPI_MODE0);
 #endif
-  } else {
-    pinMode(_sclk, OUTPUT);
-    pinMode(_sid , OUTPUT);
-    digitalWrite(_sclk, LOW);
-    digitalWrite(_sid, LOW);
-
-#if defined(USE_FAST_IO)
-    clkport     = portOutputRegister(digitalPinToPort(_sclk));
-    dataport    = portOutputRegister(digitalPinToPort(_sid));
-    clkpinmask  = digitalPinToBitMask(_sclk);
-    datapinmask = digitalPinToBitMask(_sid);
-#endif
-  }
 
   // toggle RST low to reset; CS low so it'll listen to us
   CS_LOW();
@@ -382,11 +348,7 @@ void Adafruit_ST7735::initR(uint8_t options) {
 	_width = ST7735_TFTWIDTH_128;
 	commandList(Rcmd2green144);
 	colstart = 2;
-
 	commandList(Rcmd3);
-
-
-
 	tabcolor = options;
 
 	setRotation(0);
@@ -413,19 +375,19 @@ void Adafruit_ST7735::setAddrWindow(uint8_t x0, uint8_t y0, uint8_t x1,
 
 
 void Adafruit_ST7735::pushColor(uint16_t color) {
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.beginTransaction(mySPISettings);
-#endif
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.beginTransaction(mySPISettings);
+	#endif
 
-  DC_HIGH();
-  CS_LOW();
-  spiwrite(color >> 8);
-  spiwrite(color);
-  CS_HIGH();
+	  DC_HIGH();
+	  CS_LOW();
+	  spiwrite(color >> 8);
+	  spiwrite(color);
+	  CS_HIGH();
 
-#if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)    SPI.endTransaction();
-#endif
+	#if defined (SPI_HAS_TRANSACTION)
+	SPI.endTransaction();
+	#endif
 }
 
 void Adafruit_ST7735::drawPixel(int16_t x, int16_t y, uint16_t color) {
@@ -447,7 +409,7 @@ void Adafruit_ST7735::startDraw(int16_t x, int16_t y, int16_t w, int16_t h)
 	//x, y, x+w-1, y+h-1
   setAddrWindow(x,y,w,h); //ADDR set needs to be here, sets the area of the frame buffer to write to.
   #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)     SPI.beginTransaction(mySPISettings);
+  SPI.beginTransaction(mySPISettings);
   #endif
   DC_HIGH();
   CS_LOW();
@@ -458,7 +420,7 @@ void Adafruit_ST7735::endDraw()
 	CS_HIGH();
 
 	#if defined (SPI_HAS_TRANSACTION)
-	  if (hwSPI)     SPI.endTransaction();
+	SPI.endTransaction();
 	#endif
 }
 
@@ -716,43 +678,6 @@ void Adafruit_ST7735::drawFont(uint8_t x, uint8_t y,String text)
 	}
 }
 
-/*void readBMPdata(uint8_t 
-{
-	
-}*/
-
-//4-bit RLE read.
-/*void readCBMPdata(
-{
-}*/
-
-/* This does not give a large performance increase, and is not being used.
-void Adafruit_ST7735::drawSurface(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t colorIndex[], const uint16_t pal[], uint8_t imageW, uint8_t imageH, uint8_t sectionID) {
-
-	// rudimentary clipping (drawChar w/big text requires this)
-	if((x >= _width) || (y >= _height)) return;
-
-	//get correct address position of the tile we want
-	uint8_t line = ((sectionID * w) / imageW);
-	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
-	
-	int itXAdder = 1;
-	int itYAdder = imageW - w;
-	
-    for(uint8_t j=0; j<h; j+=1, y++) {
-        for(uint8_t i=0; i<w; i++) {
-			uint8_t color = pgm_read_byte(&colorIndex[iterator]);
-			
-			iterator +=itXAdder;
-			//move to a var- should also do bit shifting on load.
-			uint16_t finalColor = pgm_read_word(&pal[color]);
-			drawFastPixel(x+i, y, finalColor >> 8, finalColor);
-        }
-		iterator += itYAdder;
-		//iterator+= imageW - w;//}
-    }
-}*/
-
 uint8_t Adafruit_ST7735::rle_4_bit(uint8_t &input, uint8_t &outputColor, uint8_t &outputLength)
 {
 	outputLength = (input >> 4) & 0xF;
@@ -776,7 +701,7 @@ void Adafruit_ST7735::drawFastVLine(int16_t x, int16_t y, int16_t h,
   uint8_t hi = color >> 8, lo = color;
     
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.beginTransaction(mySPISettings);
+  SPI.beginTransaction(mySPISettings);
 #endif
 
   DC_HIGH();
@@ -788,7 +713,7 @@ void Adafruit_ST7735::drawFastVLine(int16_t x, int16_t y, int16_t h,
   CS_HIGH();
 
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.endTransaction();
+  SPI.endTransaction();
 #endif
 }
 
@@ -804,7 +729,7 @@ void Adafruit_ST7735::drawFastHLine(int16_t x, int16_t y, int16_t w,
   uint8_t hi = color >> 8, lo = color;
 
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.beginTransaction(mySPISettings);
+  SPI.beginTransaction(mySPISettings);
 #endif
 
   DC_HIGH();
@@ -816,7 +741,7 @@ void Adafruit_ST7735::drawFastHLine(int16_t x, int16_t y, int16_t w,
   CS_HIGH();
 
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.endTransaction();
+  SPI.endTransaction();
 #endif
 }
 
@@ -842,7 +767,7 @@ void Adafruit_ST7735::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   uint8_t hi = color >> 8, lo = color;
     
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.beginTransaction(mySPISettings);
+  SPI.beginTransaction(mySPISettings);
 #endif
 
   DC_HIGH();
@@ -856,16 +781,9 @@ void Adafruit_ST7735::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,
   CS_HIGH();
 
 #if defined (SPI_HAS_TRANSACTION)
-  if (hwSPI)      SPI.endTransaction();
+  SPI.endTransaction();
 #endif
 }
-
-
-// Pass 8-bit (each) R,G,B, get back 16-bit packed color
-uint16_t Adafruit_ST7735::Color565(uint8_t r, uint8_t g, uint8_t b) {
-  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-}
-
 
 #define MADCTL_MY  0x80
 #define MADCTL_MX  0x40

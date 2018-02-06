@@ -25,7 +25,6 @@ as well as Adafruit raw 1.8" TFT display
 #define _ADAFRUIT_ST7735H_
 
 #include "Arduino.h"
-#include "Print.h"
 #include <Adafruit_GFX.h>
 
 #if defined(__AVR__) || defined(CORE_TEENSY)
