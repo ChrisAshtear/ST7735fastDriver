@@ -25,7 +25,6 @@ as well as Adafruit raw 1.8" TFT display
 #define _ADAFRUIT_ST7735H_
 
 #include "Arduino.h"
-#include "Print.h"
 #include <Adafruit_GFX.h>
 
 #if defined(__AVR__) || defined(CORE_TEENSY)
@@ -506,7 +505,6 @@ class Adafruit_ST7735 : public Adafruit_GFX {
 
  public:
 
-  Adafruit_ST7735(int8_t CS, int8_t RS, int8_t SID, int8_t SCLK, int8_t RST = -1);
   Adafruit_ST7735(int8_t CS, int8_t RS, int8_t RST = -1);
 
   //need to update fill/hline/vline/etc to use these.
