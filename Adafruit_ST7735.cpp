@@ -599,21 +599,16 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 	// rudimentary clipping (drawChar w/big text requires this)
 	if((x >= _width) || (y >= _height)) return;
 
-	//get correct address position of the tile we want
-	uint8_t line = ((sectionID * w) / imageW);
-	uint16_t iterator = ((sectionID * w) % imageW) + ((h*line)*imageW);
-	
-
 	//uint8_t palHi[palSize] = palH;
 	//uint8_t palLo[palSize] = palL;
-	uint8_t tiles =tileAddr[0];
+	uint8_t tiles =pgm_read_byte(&tileAddr[0]);
 	
     startDraw(x,y,x+w-1,y+h-1);
 
 	uint8_t rLength = 0;
 	uint8_t colorID = 0;
-	uint8_t linehi[w]; // for flip
-	uint8_t linelo[w];
+	//uint8_t linehi[w]; // for flip
+	//uint8_t linelo[w];
 	uint8_t lineCtr = 0;
 	uint16_t imageSz = w*h;
 	uint16_t startAddr = 0;
@@ -635,7 +630,7 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 		
 		for(uint8_t i = 0; i<rLength+1;i++)
 		{
-			if(flipH)
+			/*if(flipH)
 			{
 				linehi[lineCtr] = hi;
 				linelo[lineCtr] = lo;
@@ -648,11 +643,11 @@ void Adafruit_ST7735::drawCBMPsectionRLE(uint8_t x, uint8_t y, uint8_t w, uint8_
 						drawFastPixel(linehi[k], linelo[k]);
 					}
 				}
-			}
-			else
-			{
+			}*/
+			//else
+			//{
 				drawFastPixel(hi, lo);
-			}
+			//}
 		}
 		pixelsDrawn+=rLength+1;
 		//will probably need checks to see if rectFill exceeds graphic width
